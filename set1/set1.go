@@ -237,7 +237,7 @@ func Chl7AES128ECB(fileName string) ([]byte, error) {
 		return nil, fmt.Errorf("failed to read file; %s", err)
 	}
 
-	key := "YELLOW SUBMARINE"
+	const key = "YELLOW SUBMARINE"
 	decode, err := AES128ECB([]byte(key), raw)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decrypt file; %s", err)
@@ -251,7 +251,7 @@ func AES128ECB(key []byte, raw []byte) ([]byte, error) {
 		return nil, fmt.Errorf("failed to create new cipher; %s", err)
 	}
 	decrypted := make([]byte, len(raw))
-	size := 16
+	const size = 16
 	for bs, be := 0, size; bs < len(raw); bs, be = bs+size, be+size {
 		cipher.Decrypt(decrypted[bs:be], raw[bs:be])
 	}
@@ -286,7 +286,7 @@ func Chl8AES128ECB(fileName string) (string, error) {
 }
 
 func hasRepeatedBlock(data []byte) bool {
-	blockSize := 16
+	const blockSize = 16
 	blockCount := len(data) / blockSize
 	blocks := make([][]byte, blockCount)
 	for i := 0; i < blockCount; i++ {
