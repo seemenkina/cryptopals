@@ -276,7 +276,7 @@ func Chl8AES128ECB(fileName string) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("failed to decode line; %s", err)
 		}
-		if hasRepeatedBlock(lineDecode) {
+		if HasRepeatedBlock(lineDecode) {
 			rightRaw = lineDecode
 		}
 	}
@@ -285,7 +285,7 @@ func Chl8AES128ECB(fileName string) (string, error) {
 
 }
 
-func hasRepeatedBlock(data []byte) bool {
+func HasRepeatedBlock(data []byte) bool {
 	const blockSize = 16
 	blockCount := len(data) / blockSize
 	blocks := make([][]byte, blockCount)
