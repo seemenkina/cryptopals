@@ -88,3 +88,29 @@ func TestRemovePKCS7Pad(t *testing.T) {
 		t.Errorf("Expected %x, got %x", expected, actual)
 	}
 }
+
+func TestRandAESKey(t *testing.T) {
+	size := 16
+	const testSize = 1000
+	for i := 0; i < testSize; i++ {
+		_, err := GenerateRandBytes(size)
+		if err != nil {
+			t.Errorf("function return %s", err)
+		}
+	}
+}
+
+func TestAddBytes2Text(t *testing.T) {
+	input := []byte("ADD RANDOM BYTE THIS")
+	const testSize = 100
+	for i := 0; i < testSize; i++ {
+		expected, err := AddBytes2Text(input)
+		if err != nil {
+			t.Errorf("function return %s", err)
+		}
+		if !bytes.Contains(expected, input) {
+			t.Errorf("Input is not contained in output bytes: %s", input)
+		}
+	}
+
+}

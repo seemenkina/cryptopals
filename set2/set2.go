@@ -2,6 +2,7 @@ package set2
 
 import (
 	"bytes"
+	"crypto/rand"
 	"fmt"
 	"github.com/seemenkina/cryptopals/set1"
 )
@@ -43,15 +44,15 @@ func RemovePKCS7Pad(raw []byte, blockSize int) ([]byte, error) {
 //challenge 10
 func Chall10(fileName string) ([]byte, error) {
 	IV := bytes.Repeat([]byte("\x00"), 16)
-	key := "YELLOW SUBMARINE"
-	size := 16
+	const key = "YELLOW SUBMARINE"
+	const size = 16
 
 	raw, err := set1.ReadBase64File(fileName)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read: %s", err)
 	}
 
-	raw, err = CBCMode(IV, raw, []byte(key), size)
+	raw, err = CBCModeDecrypt(IV, raw, []byte(key), size)
 	if err != nil {
 		return nil, fmt.Errorf("faliled to use AES in CBC mode: %s", err)
 	}
@@ -59,7 +60,7 @@ func Chall10(fileName string) ([]byte, error) {
 	return raw, nil
 }
 
-func CBCMode(IV []byte, raw []byte, key []byte, size int) ([]byte, error) {
+func CBCModeDecrypt(IV []byte, raw []byte, key []byte, size int) ([]byte, error) {
 	prevBlock := IV
 	var decrypted []byte
 	for bs, be := 0, size; bs < len(raw); bs, be = bs+size, be+size {
@@ -78,4 +79,109 @@ func CBCMode(IV []byte, raw []byte, key []byte, size int) ([]byte, error) {
 		return nil, fmt.Errorf("failed to remove padding in data: %s", err)
 	}
 	return decrypted, nil
+}
+
+func CBCModeEncrypt(IV []byte, raw []byte, key []byte, size int) ([]byte, error) {
+
+	raw, err := AddPKCS7Pad(raw, size)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add padding in data: %s", err)
+	}
+
+	prevBlock := IV
+	var decrypted []byte
+	for bs, be := 0, size; bs < len(raw); bs, be = bs+size, be+size {
+		curBlock := raw[bs:be]
+		block, _ := set1.XorBuffers(curBlock, prevBlock)
+		encBlock, err := set1.AES128ECB(key, block)
+		if err != nil {
+			return nil, fmt.Errorf("failed to use AES: %s", err)
+		}
+		decrypted = append(decrypted, encBlock...)
+		prevBlock = encBlock
+	}
+	return decrypted, nil
+}
+
+func GenerateRandBytes(size int) ([]byte, error) {
+	raw := make([]byte, size)
+	_, err := rand.Read(raw)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate random byte: %s", err)
+	}
+	return raw, nil
+}
+
+func AddBytes2Text(input []byte) ([]byte, error) {
+	var prefixSize = len(input)%10 + 5
+	var suffixSize = len(input)%10 + 5
+	prefix, err := GenerateRandBytes(prefixSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate prefix: %s", err)
+	}
+	suffix, err := GenerateRandBytes(suffixSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate sufix: %s", err)
+	}
+
+	var plainText []byte
+	plainText = append(prefix, input...)
+	plainText = append(plainText, suffix...)
+
+	return plainText, nil
+}
+
+type functionOracle func([]byte) ([]byte, error)
+
+func EncryptionOracle(input []byte) ([]byte, error) {
+	const keySize = 16
+	key, err := GenerateRandBytes(keySize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate key: %s", err)
+	}
+
+	plainText, err := AddBytes2Text(input)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add random bytes for text: %s", err)
+	}
+
+	plainText, err = AddPKCS7Pad(plainText, keySize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to add padding: %s", err)
+	}
+
+	const randByteSize = 1
+	sb, err := GenerateRandBytes(randByteSize)
+	var encrypted []byte
+	if sb[0]%2 == 0 {
+		fmt.Print("ECB ")
+		encrypted, err = set1.AES128ECB(key, plainText)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encrypt: %s", err)
+		}
+	} else {
+		fmt.Print("CBC ")
+		IV, err := GenerateRandBytes(keySize)
+		if err != nil {
+			return nil, fmt.Errorf("failed to generate IV: %s", err)
+		}
+		encrypted, err = CBCModeEncrypt(IV, plainText, key, keySize)
+		if err != nil {
+			return nil, fmt.Errorf("failed to encrypt: %s", err)
+		}
+	}
+	return encrypted, nil
+}
+
+func BlackBox(oracle functionOracle) {
+	const size = 64
+	input := make([]byte, 64)
+	for i := 0; i < 20; i++ {
+		out, _ := oracle(input)
+		if set1.HasRepeatedBlock(out) {
+			fmt.Println("ECB")
+		} else {
+			fmt.Println("CBC")
+		}
+	}
 }
