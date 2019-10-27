@@ -251,11 +251,13 @@ func AES128ECB(key []byte, raw []byte) ([]byte, error) {
 		return nil, fmt.Errorf("failed to create new cipher; %s", err)
 	}
 	decrypted := make([]byte, len(raw))
-	const size = 16
-	for bs, be := 0, size; bs < len(raw); bs, be = bs+size, be+size {
-		cipher.Decrypt(decrypted[bs:be], raw[bs:be])
+	blockSize := cipher.BlockSize()
+	if len(raw)%blockSize != 0 {
+		return nil, fmt.Errorf("Need a multiple of the blocksize")
 	}
-
+	for bs, be := 0, blockSize; bs < len(raw); bs, be = bs+blockSize, be+blockSize {
+		cipher.Encrypt(decrypted[bs:be], raw[bs:be])
+	}
 	return decrypted, nil
 }
 
