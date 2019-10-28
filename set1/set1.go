@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io/ioutil"
+	"math/bits"
 
 	//"math"
 	"os"
@@ -32,13 +33,7 @@ func XorBuffers(raw1, raw2 []byte) ([]byte, error) {
 	return xorBuf, nil
 }
 
-//challenge 3 -
-func Chl3BruteSingleXor(raw []byte) ([]byte, error) {
-	rightRaw, _, _ := bruteSingleXor(raw)
-	return rightRaw, nil
-}
-
-func bruteSingleXor(raw []byte) ([]byte, byte, float64) {
+func BruteSingleXor(raw []byte) ([]byte, byte, float64) {
 	rightRaw := make([]byte, len(raw))
 	var rightKey byte
 	totalWeight := 0.0
@@ -98,7 +93,7 @@ func FindSingleXorKey(fileName string) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("failed to decode hex: %s", err)
 		}
-		curRaw, _, curWeight := bruteSingleXor(raw)
+		curRaw, _, curWeight := BruteSingleXor(raw)
 		if curWeight > totalWeight {
 			totalWeight = curWeight
 			rightRaw = curRaw
@@ -143,7 +138,7 @@ func BreakingRepeatingKeyXor(raw []byte) ([]byte, []byte, error) {
 
 	var totKey []byte
 	for i := 0; i < keySize; i++ {
-		_, key, _ := bruteSingleXor(blocks[i])
+		_, key, _ := BruteSingleXor(blocks[i])
 		totKey = append(totKey, key)
 	}
 
@@ -161,19 +156,9 @@ func HammingDistance(s1, s2 []byte) (int, error) {
 	}
 	distance := 0
 	for i := 0; i < len(s1); i++ {
-		distance += dist(s1[i], s2[i])
+		distance += bits.OnesCount(uint(s1[i] ^ s2[i]))
 	}
 	return distance, nil
-}
-
-func dist(x, y byte) int {
-	var r int
-	x ^= y
-	for x != 0 {
-		r++
-		x &= x - 1
-	}
-	return r
 }
 
 func FindKeySize(buffer []byte) (int, error) {
@@ -238,22 +223,38 @@ func Chl7AES128ECB(fileName string) ([]byte, error) {
 	}
 
 	const key = "YELLOW SUBMARINE"
-	decode, err := AES128ECB([]byte(key), raw)
+	decode, err := AES128ECBDecrypt([]byte(key), raw)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decrypt file; %s", err)
 	}
 	return decode, nil
 }
 
-func AES128ECB(key []byte, raw []byte) ([]byte, error) {
+func AES128ECBDecrypt(key []byte, raw []byte) ([]byte, error) {
 	cipher, err := aes.NewCipher(key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create new cipher; %s", err)
 	}
 	decrypted := make([]byte, len(raw))
-	blockSize := cipher.BlockSize()
+	blockSize := aes.BlockSize
 	if len(raw)%blockSize != 0 {
-		return nil, fmt.Errorf("Need a multiple of the blocksize")
+		return nil, fmt.Errorf("need a multiple of the blocksize")
+	}
+	for bs, be := 0, blockSize; bs < len(raw); bs, be = bs+blockSize, be+blockSize {
+		cipher.Decrypt(decrypted[bs:be], raw[bs:be])
+	}
+	return decrypted, nil
+}
+
+func AES128ECBEncrypt(key []byte, raw []byte) ([]byte, error) {
+	cipher, err := aes.NewCipher(key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create new cipher; %s", err)
+	}
+	decrypted := make([]byte, len(raw))
+	blockSize := aes.BlockSize
+	if len(raw)%blockSize != 0 {
+		return nil, fmt.Errorf("need a multiple of the blocksize")
 	}
 	for bs, be := 0, blockSize; bs < len(raw); bs, be = bs+blockSize, be+blockSize {
 		cipher.Encrypt(decrypted[bs:be], raw[bs:be])

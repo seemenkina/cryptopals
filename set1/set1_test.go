@@ -3,6 +3,9 @@ package set1
 import (
 	"bytes"
 	"encoding/hex"
+	"github.com/davecgh/go-spew/spew"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
@@ -40,18 +43,6 @@ func TestXorBuffers(t *testing.T) {
 	}
 }
 
-func TestXorSingleByte(t *testing.T) {
-	input, _ := hex.DecodeString("1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736")
-	expected := "Cooking MC's like a pound of bacon"
-	actual, err := Chl3BruteSingleXor(input)
-	if err != nil {
-		t.Error(err)
-	}
-	if expected != string(actual) {
-		t.Error("Expected ", expected, " \n got ", string(actual))
-	}
-}
-
 func TestFindSingleXorKey(t *testing.T) {
 	expected := "Now that the party is jumping\n"
 	actual, err := FindSingleXorKey("chl4.txt")
@@ -77,17 +68,46 @@ func TestRepeatingKeyXor(t *testing.T) {
 	}
 }
 
-func TestAES128ECB(t *testing.T) {
+func TestAES128ECBEncrypt(t *testing.T) {
 	key, _ := hex.DecodeString("2b7e151628aed2a6abf7158809cf4f3c")
-	plainText, _ := hex.DecodeString("6bc1bee22e409f96e93d7e117393172aae2d8a571e03ac9c9eb76fac45af8e5130c81c46a35ce411e5fbc1191" +
-		"a0a52eff69f2445df4f9b17ad2b417be66c3710")
-	expected, _ := hex.DecodeString("3ad77bb40d7a3660a89ecaf32466ef97f5d3d58503b9699de785895a96fdbaaf43b1cd7f598ece23881b00e3e" +
-		"d0306887b0c785e27e8ad3f8223207104725dd4")
-	actual, err := AES128ECB(key, plainText)
-	if err != nil {
-		t.Error(err)
+	plainText, _ := hex.DecodeString("6bc1bee22e409f96e93d7e117393172aae2d8a571e03ac9c9eb76fac45" +
+		"af8e5130c81c46a35ce411e5fbc1191a0a52eff69f2445df4f9b17ad2b417be66c3710")
+	expected, _ := hex.DecodeString("3ad77bb40d7a3660a89ecaf32466ef97f5d3d58503b9699de785895a96fdb" +
+		"aaf43b1cd7f598ece23881b00e3ed0306887b0c785e27e8ad3f8223207104725dd4")
+
+	input := []struct {
+		plainT  []byte
+		cipherT []byte
+		key     []byte
+	}{
+		{plainText, expected, key},
 	}
-	if !bytes.Equal(expected, actual) {
-		t.Error("Expected ", expected, " \n got ", actual)
+	for _, tt := range input {
+		t.Run("", func(t *testing.T) {
+			tt := tt
+			actual, err := AES128ECBEncrypt(tt.key, tt.plainT)
+			require.NoError(t, err)
+			assert.EqualValues(t, actual, tt.cipherT)
+		})
+	}
+}
+
+func TestBruteSingleXor(t *testing.T) {
+	in := "1b37373331363f78151b7f2b783431333d78397828372d363c78373e783a393b3736"
+	rawIn, _ := hex.DecodeString(in)
+	input := []struct {
+		input    []byte
+		expected []byte
+		key      byte
+	}{
+		{rawIn, []byte("Cooking MC's like a pound of bacon"), byte(0x58)},
+	}
+	for _, tt := range input {
+		t.Run("", func(t *testing.T) {
+			actual, key, _ := BruteSingleXor(tt.input)
+			spew.Dump(key)
+			assert.EqualValues(t, actual, tt.expected)
+			assert.EqualValues(t, key, tt.key)
+		})
 	}
 }
