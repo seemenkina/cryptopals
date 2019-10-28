@@ -2,45 +2,46 @@ package set2
 
 import (
 	"bytes"
+	"crypto/aes"
 	"crypto/rand"
-	"encoding/base64"
 	"fmt"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/seemenkina/cryptopals/set1"
 )
 
 //challenge 9
-func AddPKCS7Pad(raw []byte, lenBlock int) ([]byte, error) {
+func AddPKCS7Pad(raw []byte, lenBlock int) []byte {
 	padLen := lenBlock - (len(raw) % lenBlock)
 	var padding []byte
 	padding = append(padding, byte(padLen))
 	padding = bytes.Repeat(padding, padLen)
 	raw = append(raw, padding...)
-	return raw, nil
+	return raw
 }
 
 func RemovePKCS7Pad(raw []byte, blockSize int) ([]byte, error) {
 	var rawLen = len(raw)
 	if rawLen%blockSize != 0 {
-		return raw, fmt.Errorf("data's length isn't a multiple of blockSize")
+		return nil, fmt.Errorf("data's length isn't a multiple of blockSize")
 	}
 	padBlock := raw[rawLen-blockSize:]
-	padCharacter := padBlock[blockSize-1]
-	padSize := int(padCharacter)
-	isPad := false
 
-	for i := blockSize - padSize; i < blockSize; i++ {
-		if padBlock[i] == padCharacter {
-			isPad = true
-		} else {
-			isPad = false
+	if ok, padLen := PaddingValidation(padBlock); ok {
+		return raw[:rawLen-padLen], nil
+	} else {
+		return nil, fmt.Errorf("incorrect padding in last block")
+	}
+}
+
+func PaddingValidation(block []byte) (bool, int) {
+	padCharacter := block[len(block)-1]
+	padSize := int(padCharacter)
+	for i := len(block) - padSize; i < len(block); i++ {
+		if block[i] != padCharacter {
+			return false, 0
 		}
 	}
-	if isPad {
-		return raw[:rawLen-padSize], nil
-	} else {
-		return raw, fmt.Errorf("incorrect padding in last block")
-	}
+	return true, padSize
 }
 
 //challenge 10
@@ -75,7 +76,7 @@ func CBCModeDecrypt(IV []byte, raw []byte, key []byte, size int) ([]byte, error)
 		decrypted = append(decrypted, block...)
 		prevBlock = curBlock
 	}
-
+	spew.Dump(decrypted)
 	decrypted, err := RemovePKCS7Pad(decrypted, size)
 	if err != nil {
 		return nil, fmt.Errorf("failed to remove padding in data: %s", err)
@@ -84,11 +85,7 @@ func CBCModeDecrypt(IV []byte, raw []byte, key []byte, size int) ([]byte, error)
 }
 
 func CBCModeEncrypt(IV []byte, raw []byte, key []byte, size int) ([]byte, error) {
-
-	raw, err := AddPKCS7Pad(raw, size)
-	if err != nil {
-		return nil, fmt.Errorf("failed to add padding in data: %s", err)
-	}
+	raw = AddPKCS7Pad(raw, size)
 
 	prevBlock := IV
 	var decrypted []byte
@@ -147,10 +144,7 @@ func EncryptionOracle(input []byte) ([]byte, error) {
 		return nil, fmt.Errorf("failed to add random bytes for text: %s", err)
 	}
 
-	plainText, err = AddPKCS7Pad(plainText, keySize)
-	if err != nil {
-		return nil, fmt.Errorf("failed to add padding: %s", err)
-	}
+	plainText = AddPKCS7Pad(plainText, keySize)
 
 	const randByteSize = 1
 	sb, err := GenerateRandBytes(randByteSize)
@@ -188,31 +182,85 @@ func BlackBox(oracle functionOracle) {
 	}
 }
 
-func Chl12() []byte {
-	const key = "6e666eccf758c5386fb3b444ba61c362"
-	const unknownStr = "Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lyb" +
-		"GllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK"
-	unkRaw, _ := base64.StdEncoding.DecodeString(string(unknownStr))
-	encr, _ := ByteAtTimeECBDetect(unkRaw, []byte(key))
-	return encr
+type boxFunc func([]byte) []byte
+
+func newBlockBoxEncrypter(key, secret []byte) func(plainText []byte) []byte {
+	return func(plainText []byte) []byte {
+		plainText = append(plainText, secret...)
+		plainText = AddPKCS7Pad(plainText, aes.BlockSize)
+
+		encr, err := set1.AES128ECB(key, plainText)
+		if err != nil {
+			panic("encr failed" + err.Error())
+		}
+		return encr
+	}
+}
+func newHarderBlockBoxEncrypter(key, prefix, secret []byte) func(plainText []byte) []byte {
+	bb := newBlockBoxEncrypter(key, secret)
+	return func(plainText []byte) []byte {
+		return bb(append(prefix, plainText...))
+	}
 }
 
-func ByteAtTimeECBDetect(secret []byte, randKey []byte) ([]byte, error) {
-	var suf = []byte("A")
-	var input []byte
-	for i := 0; i < 16; i++ {
-		suf = append(suf, []byte("A")...)
-		input = append(suf, secret...)
-		if len(input)%16 == 0 {
-			println(len(input) / 16)
-			break
+func blockOracle(blackBox boxFunc) int {
+
+	suf := []byte("")
+	enc := blackBox(suf)
+	prevBlockCount := len(enc)
+
+	for i := 0; i < 256; i++ {
+		suf = append(suf, 0)
+		enc := blackBox(suf)
+		curBlockCount := len(enc)
+		if prevBlockCount != curBlockCount {
+			return curBlockCount - prevBlockCount
 		}
 	}
-	input, _ = AddPKCS7Pad(input, 16)
-	encr, _ := set1.AES128ECB(randKey, input)
-	if set1.HasRepeatedBlock(encr) {
-		fmt.Println("ECB")
+	panic("block counter failed")
+}
+
+func ByteAtTimeECBDetect(blackBox boxFunc) ([]byte, error) {
+	var out []byte
+	blockSize := blockOracle(blackBox)
+
+	enc := blackBox([]byte(""))
+	numBlocks := len(enc)/blockSize + 1
+
+	appendBlocks := bytes.Repeat([]byte("A"), numBlocks*blockSize)
+	goodLen := len(appendBlocks)
+
+	for i := 0; i < goodLen; i++ {
+		appendBlocks = appendBlocks[1:]
+
+		enc := blackBox(appendBlocks)
+		block := enc[blockSize*(numBlocks-1) : blockSize*numBlocks]
+
+		knowText := append(appendBlocks, out...)
+		knownBlock := knowText[len(knowText)-blockSize+1:]
+
+		letter, ok := detectLetter(blackBox, block, knownBlock)
+		if !ok {
+			break
+		}
+		out = append(out, letter)
 	}
-	spew.Dump(encr)
-	return encr, nil
+	if len(out) == 0 {
+		return nil, fmt.Errorf("failed to find anything")
+	}
+	if lb := out[len(out)-1]; lb != 0x1 {
+		return nil, fmt.Errorf("unexpected last byte %x", lb)
+	}
+	return out[:len(out)-1], nil
+}
+
+func detectLetter(blackBox boxFunc, unkBlock, knownBlock []byte) (byte, bool) {
+	for i := 0; i < 256; i++ {
+		block := append(knownBlock, byte(i))
+		encr := blackBox(block)
+		if bytes.Equal(encr[:len(block)], unkBlock) {
+			return byte(i), true
+		}
+	}
+	return 0, false
 }
