@@ -5,8 +5,8 @@ import (
 	"crypto/aes"
 	"crypto/rand"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/seemenkina/cryptopals/set1"
+	"strings"
 )
 
 //challenge 9
@@ -68,7 +68,7 @@ func CBCModeDecrypt(IV []byte, raw []byte, key []byte, size int) ([]byte, error)
 	var decrypted []byte
 	for bs, be := 0, size; bs < len(raw); bs, be = bs+size, be+size {
 		curBlock := raw[bs:be]
-		encBlock, err := set1.AES128ECB(key, curBlock)
+		encBlock, err := set1.AES128ECBDecrypt(key, curBlock)
 		block, _ := set1.XorBuffers(encBlock, prevBlock)
 		if err != nil {
 			return nil, fmt.Errorf("failed to use AES: %s", err)
@@ -76,7 +76,6 @@ func CBCModeDecrypt(IV []byte, raw []byte, key []byte, size int) ([]byte, error)
 		decrypted = append(decrypted, block...)
 		prevBlock = curBlock
 	}
-	spew.Dump(decrypted)
 	decrypted, err := RemovePKCS7Pad(decrypted, size)
 	if err != nil {
 		return nil, fmt.Errorf("failed to remove padding in data: %s", err)
@@ -92,7 +91,7 @@ func CBCModeEncrypt(IV []byte, raw []byte, key []byte, size int) ([]byte, error)
 	for bs, be := 0, size; bs < len(raw); bs, be = bs+size, be+size {
 		curBlock := raw[bs:be]
 		block, _ := set1.XorBuffers(curBlock, prevBlock)
-		encBlock, err := set1.AES128ECB(key, block)
+		encBlock, err := set1.AES128ECBEncrypt(key, block)
 		if err != nil {
 			return nil, fmt.Errorf("failed to use AES: %s", err)
 		}
@@ -151,7 +150,7 @@ func EncryptionOracle(input []byte) ([]byte, error) {
 	var encrypted []byte
 	if sb[0]%2 == 0 {
 		fmt.Print("ECB ")
-		encrypted, err = set1.AES128ECB(key, plainText)
+		encrypted, err = set1.AES128ECBDecrypt(key, plainText)
 		if err != nil {
 			return nil, fmt.Errorf("failed to encrypt: %s", err)
 		}
@@ -189,17 +188,11 @@ func newBlockBoxEncrypter(key, secret []byte) func(plainText []byte) []byte {
 		plainText = append(plainText, secret...)
 		plainText = AddPKCS7Pad(plainText, aes.BlockSize)
 
-		encr, err := set1.AES128ECB(key, plainText)
+		encr, err := set1.AES128ECBDecrypt(key, plainText)
 		if err != nil {
 			panic("encr failed" + err.Error())
 		}
 		return encr
-	}
-}
-func newHarderBlockBoxEncrypter(key, prefix, secret []byte) func(plainText []byte) []byte {
-	bb := newBlockBoxEncrypter(key, secret)
-	return func(plainText []byte) []byte {
-		return bb(append(prefix, plainText...))
 	}
 }
 
@@ -226,7 +219,6 @@ func ByteAtTimeECBDetect(blackBox boxFunc) ([]byte, error) {
 
 	enc := blackBox([]byte(""))
 	numBlocks := len(enc)/blockSize + 1
-
 	appendBlocks := bytes.Repeat([]byte("A"), numBlocks*blockSize)
 	goodLen := len(appendBlocks)
 
@@ -238,7 +230,6 @@ func ByteAtTimeECBDetect(blackBox boxFunc) ([]byte, error) {
 
 		knowText := append(appendBlocks, out...)
 		knownBlock := knowText[len(knowText)-blockSize+1:]
-
 		letter, ok := detectLetter(blackBox, block, knownBlock)
 		if !ok {
 			break
@@ -263,4 +254,88 @@ func detectLetter(blackBox boxFunc, unkBlock, knownBlock []byte) (byte, bool) {
 		}
 	}
 	return 0, false
+}
+
+type AESProfiler struct {
+	key []byte
+}
+
+func (p *AESProfiler) Parse(in string) map[string]string {
+	fields := strings.Split(in, "&")
+	out := make(map[string]string)
+	for _, f := range fields {
+		row := strings.Split(f, "=")
+		out[row[0]] = row[1]
+	}
+	return out
+}
+
+func (p *AESProfiler) ProfileFor(email string) []byte {
+	//uid := mrand.Int() % 100
+	return []byte("email=" + email + "&uid=10&role=user")
+}
+
+func (p *AESProfiler) EncProfile(email []byte) ([]byte, error) {
+	plainT := AddPKCS7Pad(p.ProfileFor(string(email)), aes.BlockSize)
+	enc, err := set1.AES128ECBEncrypt(p.key, plainT)
+	if err != nil {
+		return nil, err
+	}
+	return enc, nil
+}
+
+func (p *AESProfiler) DecProfile(ciphert []byte) (map[string]string, error) {
+	decr, err := set1.AES128ECBDecrypt(p.key, ciphert)
+	if err != nil {
+		return nil, err
+	}
+	raw, err := RemovePKCS7Pad(decr, aes.BlockSize)
+	if err != nil {
+		return nil, err
+	}
+	return p.Parse(string(raw)), nil
+}
+
+func createBlock(p AESProfiler, email, word string) []byte {
+	chosBlock := AddPKCS7Pad([]byte(word), aes.BlockSize)
+	enc, err := p.EncProfile(append([]byte(email), chosBlock...))
+	if err != nil {
+		return nil
+	}
+	return enc[aes.BlockSize : aes.BlockSize*2]
+}
+
+func ECBCutPasteDetect(p AESProfiler) (map[string]string, error) {
+	email := "mail@m.com"
+
+	userBlock := createBlock(p, email, "user")
+	suf := []byte(email)
+	for i := 0; i < 256; i++ {
+		suf = append([]byte("A"), suf...)
+		enc, _ := p.EncProfile(suf)
+		curBlock := enc[len(enc)-aes.BlockSize:]
+		if bytes.Equal(curBlock, userBlock) {
+			break
+		}
+	}
+	encUserAttack, err := p.EncProfile(suf)
+	if err != nil {
+		return nil, fmt.Errorf("ret: %s", err)
+	}
+
+	blockAdmin := createBlock(p, email, "admin")
+	attackProfile := append(encUserAttack[:len(encUserAttack)-aes.BlockSize], blockAdmin...)
+
+	decr, err := p.DecProfile(attackProfile)
+	if err != nil {
+		return nil, fmt.Errorf("ret: %s", err)
+	}
+	return decr, nil
+}
+
+func newHarderBlockBoxEncrypter(key, prefix, secret []byte) func(plainText []byte) []byte {
+	bb := newBlockBoxEncrypter(key, secret)
+	return func(plainText []byte) []byte {
+		return bb(append(prefix, plainText...))
+	}
 }
