@@ -238,7 +238,7 @@ func AES128ECBDecrypt(key []byte, raw []byte) ([]byte, error) {
 	decrypted := make([]byte, len(raw))
 	blockSize := aes.BlockSize
 	if len(raw)%blockSize != 0 {
-		return nil, fmt.Errorf("need a multiple of the blocksize")
+		return nil, fmt.Errorf("need a multiple of the blocksize for decrypt")
 	}
 	for bs, be := 0, blockSize; bs < len(raw); bs, be = bs+blockSize, be+blockSize {
 		cipher.Decrypt(decrypted[bs:be], raw[bs:be])
@@ -254,7 +254,7 @@ func AES128ECBEncrypt(key []byte, raw []byte) ([]byte, error) {
 	decrypted := make([]byte, len(raw))
 	blockSize := aes.BlockSize
 	if len(raw)%blockSize != 0 {
-		return nil, fmt.Errorf("need a multiple of the blocksize")
+		return nil, fmt.Errorf("need a multiple of the blocksize for encrypt")
 	}
 	for bs, be := 0, blockSize; bs < len(raw); bs, be = bs+blockSize, be+blockSize {
 		cipher.Encrypt(decrypted[bs:be], raw[bs:be])
