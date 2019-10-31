@@ -9,6 +9,7 @@ import (
 	"github.com/seemenkina/cryptopals/set1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	mrand "math/rand"
 	"testing"
 )
 
@@ -171,7 +172,6 @@ func TestByteAtTimeECBDetectHarder(t *testing.T) {
 	const unknownStr = "Um9sbGluJyBpbiBteSA1LjAKV2l0aCBteSByYWctdG9wIGRvd24gc28gbXkgaGFpciBjYW4gYmxvdwpUaGUgZ2lyb" +
 		"GllcyBvbiBzdGFuZGJ5IHdhdmluZyBqdXN0IHRvIHNheSBoaQpEaWQgeW91IHN0b3A/IE5vLCBJIGp1c3QgZHJvdmUgYnkK"
 	unkRaw, _ := base64.StdEncoding.DecodeString(unknownStr)
-
 	tests := []struct {
 		input []byte
 	}{
@@ -190,16 +190,19 @@ func TestByteAtTimeECBDetectHarder(t *testing.T) {
 		t.Run("", func(t *testing.T) {
 			randKey := make([]byte, aes.BlockSize)
 			_, _ = rand.Read(randKey)
-
-			//randPrefix := make([]byte, 2*aes.BlockSize)
-			//_, _ = rand.Read(randPrefix)
-			randPrefix := []byte("YELLOW SUB")
-
-			blackBox := newHarderBlockBoxEncrypter(randKey, randPrefix, input)
-			revealedText, err := ByteAtTimeECBDetect(blackBox)
-
-			require.NoError(t, err)
-			assert.EqualValues(t, input, revealedText)
+			const testSize = 100
+			for i := 0; i < testSize; i++ {
+				n := mrand.Int() % 50
+				randPrefix := make([]byte, n)
+				_, _ = rand.Read(randPrefix)
+				blackBox := newHarderBlockBoxEncrypter(randKey, randPrefix, input)
+				revealedText, err := ByteAtTimeECBDetectHarder(blackBox)
+				if err != nil {
+					spew.Dump(randKey, randPrefix)
+				}
+				require.NoError(t, err)
+				assert.EqualValues(t, input, revealedText)
+			}
 		})
 	}
 }
