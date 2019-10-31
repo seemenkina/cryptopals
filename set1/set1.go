@@ -289,7 +289,7 @@ func Chl8AES128ECB(fileName string) (string, error) {
 }
 
 func HasRepeatedBlock(data []byte) bool {
-	const blockSize = 16
+	const blockSize = aes.BlockSize
 	blockCount := len(data) / blockSize
 	blocks := make([][]byte, blockCount)
 	for i := 0; i < blockCount; i++ {
