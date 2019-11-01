@@ -9,8 +9,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"math/bits"
-
-	//"math"
 	"os"
 )
 
@@ -215,21 +213,6 @@ func ReadBase64File(fileName string) ([]byte, error) {
 	return decoded[:n], nil
 }
 
-//challenge 7
-func Chl7AES128ECB(fileName string) ([]byte, error) {
-	raw, err := ReadBase64File(fileName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read file; %s", err)
-	}
-
-	const key = "YELLOW SUBMARINE"
-	decode, err := AES128ECBDecrypt([]byte(key), raw)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt file; %s", err)
-	}
-	return decode, nil
-}
-
 func AES128ECBDecrypt(key []byte, raw []byte) ([]byte, error) {
 	cipher, err := aes.NewCipher(key)
 	if err != nil {
@@ -260,32 +243,6 @@ func AES128ECBEncrypt(key []byte, raw []byte) ([]byte, error) {
 		cipher.Encrypt(decrypted[bs:be], raw[bs:be])
 	}
 	return decrypted, nil
-}
-
-//challenge 8
-func Chl8AES128ECB(fileName string) (string, error) {
-	file, err := os.Open(fileName)
-	if err != nil {
-		return "", fmt.Errorf("failed to open file; %s", err)
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	var rightRaw []byte
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		lineDecode, err := hex.DecodeString(line)
-		if err != nil {
-			return "", fmt.Errorf("failed to decode line; %s", err)
-		}
-		if HasRepeatedBlock(lineDecode) {
-			rightRaw = lineDecode
-		}
-	}
-	hexRightRaw := hex.EncodeToString(rightRaw)
-	return hexRightRaw, nil
-
 }
 
 func HasRepeatedBlock(data []byte) bool {
