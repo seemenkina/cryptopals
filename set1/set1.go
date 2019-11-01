@@ -110,19 +110,6 @@ func RepeatingKeyXor(key []byte, input []byte) ([]byte, error) {
 	return xorRaw, nil
 }
 
-//challenge 6
-func Chl6(fileName string) ([]byte, []byte, error) {
-	decoded, err := ReadBase64File(fileName)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read file: %s", err)
-	}
-	raw, key, err := BreakingRepeatingKeyXor(decoded)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to break repeating-key xor cipher: %s", err)
-	}
-	return raw, key, nil
-}
-
 func BreakingRepeatingKeyXor(raw []byte) ([]byte, []byte, error) {
 	keySize, err := FindKeySize(raw)
 	if err != nil {

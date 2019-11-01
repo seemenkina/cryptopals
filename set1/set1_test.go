@@ -59,7 +59,8 @@ func TestFindSingleXorKey(t *testing.T) {
 func TestRepeatingKeyXor(t *testing.T) {
 	input := "Burning 'em, if you ain't quick and nimble\nI go crazy when I hear a cymbal"
 	key := "ICE"
-	expected := "0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272a282b2f20430a652e2c652a3124333a653e2b2027630c692b20283165286326302e27282f"
+	expected := "0b3637272a2b2e63622c2e69692a23693a2a3c6324202d623d63343c2a26226324272765272a" +
+		"282b2f20430a652e2c652a3124333a653e2b2027630c692b20283165286326302e27282f"
 	actual, err := RepeatingKeyXor([]byte(key), []byte(input))
 	actualstr := hex.EncodeToString(actual)
 	if err != nil {
@@ -68,6 +69,15 @@ func TestRepeatingKeyXor(t *testing.T) {
 	if expected != actualstr {
 		t.Error("Expected ", expected, " \n got ", actualstr)
 	}
+}
+
+func TestBreakingRepeatingKeyXor(t *testing.T) {
+	const expectKey = "Terminator X: Bring the noise"
+	decoded, err := ReadBase64File("chl6.txt")
+	require.NoError(t, err)
+	_, key, err := BreakingRepeatingKeyXor(decoded)
+	require.NoError(t, err)
+	assert.EqualValues(t, expectKey, key)
 }
 
 func TestAES128ECBNist(t *testing.T) {
