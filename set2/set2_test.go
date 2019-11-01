@@ -5,6 +5,7 @@ import (
 	"crypto/aes"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/hex"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/seemenkina/cryptopals/set1"
 	"github.com/stretchr/testify/assert"
@@ -64,20 +65,55 @@ func TestRemovePKCS7Pad(t *testing.T) {
 	}
 }
 
-func TestCBCModeDecrypt(t *testing.T) {
+func TestCBCModeDecryptChl(t *testing.T) {
 	IV := bytes.Repeat([]byte("\x00"), 16)
 	const key = "YELLOW SUBMARINE"
 	raw, _ := set1.ReadBase64File("chl10.txt")
-	//if err != nil {
-	//	return nil, fmt.Errorf("failed to read: %s", err)
-	//}
 
-	raw, _ = CBCModeDecrypt(IV, raw, []byte(key), aes.BlockSize)
-	spew.Dump(string(raw))
-	//if err != nil {
-	//	return nil, fmt.Errorf("faliled to use AES in CBC mode: %s", err)
-	//}
+	input := []struct {
+		cipherT []byte
+		IV      []byte
+		key     []byte
+	}{
+		{raw, IV, []byte(key)},
+	}
 
+	for _, tt := range input {
+		tt := tt
+		t.Run("", func(t *testing.T) {
+			_, err := CBCModeDecrypt(tt.IV, tt.cipherT, tt.key, aes.BlockSize)
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestCBCModeNist(t *testing.T) {
+	plain, _ := hex.DecodeString("6bc1bee22e409f96e93d7e117393172aae2d8a571e03ac9c9eb76fac45af8e5130c81c4" +
+		"6a35ce411e5fbc1191a0a52eff69f2445df4f9b17ad2b417be66c3710")
+	cipher, _ := hex.DecodeString("7649abac8119b246cee98e9b12e9197d5086cb9b507219ee95db113a917678b" +
+		"273bed6b8e3c1743b7116e69e222295163ff1caa1681fac09120eca307586e1a7")
+	key, _ := hex.DecodeString("2b7e151628aed2a6abf7158809cf4f3c")
+	IV, _ := hex.DecodeString("000102030405060708090a0b0c0d0e0f")
+
+	input := []struct {
+		plainT  []byte
+		cipherT []byte
+		IV      []byte
+		key     []byte
+	}{
+		{plain, cipher, IV, key},
+	}
+
+	for _, tt := range input {
+		tt := tt
+		t.Run("", func(t *testing.T) {
+			encr, err := CBCModeEncrypt(tt.IV, tt.plainT, tt.key, aes.BlockSize)
+			decr, err := CBCModeDecrypt(tt.IV, encr, tt.key, aes.BlockSize)
+			require.NoError(t, err)
+
+			assert.EqualValues(t, decr, tt.plainT)
+		})
+	}
 }
 
 func TestAddBytes2Text(t *testing.T) {
@@ -92,6 +128,10 @@ func TestAddBytes2Text(t *testing.T) {
 			t.Errorf("Input is not contained in output bytes: %s", input)
 		}
 	}
+}
+
+func TestBlackBox(t *testing.T) {
+	BlackBox(EncryptionOracle)
 }
 
 func TestByteAtTimeECBDetect(t *testing.T) {

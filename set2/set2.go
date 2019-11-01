@@ -44,25 +44,6 @@ func PaddingValidation(block []byte) (bool, int) {
 	return true, padSize
 }
 
-//challenge 10
-func Chall10(fileName string) ([]byte, error) {
-	IV := bytes.Repeat([]byte("\x00"), 16)
-	const key = "YELLOW SUBMARINE"
-	const size = 16
-
-	raw, err := set1.ReadBase64File(fileName)
-	if err != nil {
-		return nil, fmt.Errorf("failed to read: %s", err)
-	}
-
-	raw, err = CBCModeDecrypt(IV, raw, []byte(key), size)
-	if err != nil {
-		return nil, fmt.Errorf("faliled to use AES in CBC mode: %s", err)
-	}
-
-	return raw, nil
-}
-
 func CBCModeDecrypt(IV []byte, raw []byte, key []byte, size int) ([]byte, error) {
 	prevBlock := IV
 	var decrypted []byte
@@ -85,7 +66,6 @@ func CBCModeDecrypt(IV []byte, raw []byte, key []byte, size int) ([]byte, error)
 
 func CBCModeEncrypt(IV []byte, raw []byte, key []byte, size int) ([]byte, error) {
 	raw = AddPKCS7Pad(raw, size)
-
 	prevBlock := IV
 	var decrypted []byte
 	for bs, be := 0, size; bs < len(raw); bs, be = bs+size, be+size {
@@ -132,7 +112,7 @@ func AddBytes2Text(input []byte) ([]byte, error) {
 type functionOracle func([]byte) ([]byte, error)
 
 func EncryptionOracle(input []byte) ([]byte, error) {
-	const keySize = 16
+	const keySize = aes.BlockSize
 	key, err := GenerateRandBytes(keySize)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate key: %s", err)
