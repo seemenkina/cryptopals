@@ -246,3 +246,16 @@ func TestByteAtTimeECBDetectHarder(t *testing.T) {
 		})
 	}
 }
+
+func TestCBCBlitflippingAtack(t *testing.T) {
+	randKey := make([]byte, aes.BlockSize)
+	_, _ = rand.Read(randKey)
+	randIV := make([]byte, aes.BlockSize)
+	_, _ = rand.Read(randIV)
+
+	userDataTrue := ";admin=true;"
+	cm := CBCModule{randIV, randKey}
+
+	flag := CBCBlitflippingAtack(cm, []byte(userDataTrue))
+	assert.EqualValues(t, flag, true)
+}
