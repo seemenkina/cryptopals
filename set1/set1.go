@@ -206,11 +206,10 @@ func AES128ECBDecrypt(key []byte, raw []byte) ([]byte, error) {
 		return nil, fmt.Errorf("failed to create new cipher; %s", err)
 	}
 	decrypted := make([]byte, len(raw))
-	blockSize := aes.BlockSize
-	if len(raw)%blockSize != 0 {
+	if len(raw)%aes.BlockSize != 0 {
 		return nil, fmt.Errorf("need a multiple of the blocksize for decrypt")
 	}
-	for bs, be := 0, blockSize; bs < len(raw); bs, be = bs+blockSize, be+blockSize {
+	for bs, be := 0, aes.BlockSize; bs < len(raw); bs, be = bs+aes.BlockSize, be+aes.BlockSize {
 		cipher.Decrypt(decrypted[bs:be], raw[bs:be])
 	}
 	return decrypted, nil
@@ -222,22 +221,20 @@ func AES128ECBEncrypt(key []byte, raw []byte) ([]byte, error) {
 		return nil, fmt.Errorf("failed to create new cipher; %s", err)
 	}
 	decrypted := make([]byte, len(raw))
-	blockSize := aes.BlockSize
-	if len(raw)%blockSize != 0 {
+	if len(raw)%aes.BlockSize != 0 {
 		return nil, fmt.Errorf("need a multiple of the blocksize for encrypt")
 	}
-	for bs, be := 0, blockSize; bs < len(raw); bs, be = bs+blockSize, be+blockSize {
+	for bs, be := 0, aes.BlockSize; bs < len(raw); bs, be = bs+aes.BlockSize, be+aes.BlockSize {
 		cipher.Encrypt(decrypted[bs:be], raw[bs:be])
 	}
 	return decrypted, nil
 }
 
 func HasRepeatedBlock(data []byte) bool {
-	const blockSize = aes.BlockSize
-	blockCount := len(data) / blockSize
+	blockCount := len(data) / aes.BlockSize
 	blocks := make([][]byte, blockCount)
 	for i := 0; i < blockCount; i++ {
-		blocks[i] = data[i*blockSize : (i+1)*blockSize]
+		blocks[i] = data[i*aes.BlockSize : (i+1)*aes.BlockSize]
 	}
 
 	for i := 0; i < blockCount; i++ {

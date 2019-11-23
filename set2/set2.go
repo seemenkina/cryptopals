@@ -36,6 +36,9 @@ func RemovePKCS7Pad(raw []byte, blockSize int) ([]byte, error) {
 func PaddingValidation(block []byte) (bool, int) {
 	padCharacter := block[len(block)-1]
 	padSize := int(padCharacter)
+	if padSize > aes.BlockSize {
+		return false, 0
+	}
 	for i := len(block) - padSize; i < len(block); i++ {
 		if block[i] != padCharacter {
 			return false, 0
@@ -342,11 +345,10 @@ func prefix(blackBox boxFunc, blockSize int) (int, int) {
 }
 
 func IndexRepetedBlock(data []byte) (bool, int) {
-	const blockSize = aes.BlockSize
-	blockCount := len(data) / blockSize
+	blockCount := len(data) / aes.BlockSize
 	blocks := make([][]byte, blockCount)
 	for i := 0; i < blockCount; i++ {
-		blocks[i] = data[i*blockSize : (i+1)*blockSize]
+		blocks[i] = data[i*aes.BlockSize : (i+1)*aes.BlockSize]
 	}
 
 	for i := 0; i < blockCount; i++ {
@@ -393,13 +395,12 @@ func ByteAtTimeECBDetectHarder(blackBox boxFunc) ([]byte, error) {
 }
 
 func detectLetterHarder(blackBox boxFunc, unkBlock, knownBlock []byte, prefSize int) (byte, bool) {
-	blockSize := aes.BlockSize
 	for i := 0; i < 256; i++ {
 		block := append(knownBlock, byte(i))
 		encr := blackBox(block)
-		blockNum := len(block)/blockSize + prefSize
+		blockNum := len(block)/aes.BlockSize + prefSize
 
-		if bytes.Equal(encr[(blockNum-1)*blockSize:(blockNum)*blockSize], unkBlock) {
+		if bytes.Equal(encr[(blockNum-1)*aes.BlockSize:(blockNum)*aes.BlockSize], unkBlock) {
 			return byte(i), true
 		}
 	}
