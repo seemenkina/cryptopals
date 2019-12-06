@@ -36,7 +36,7 @@ func RemovePKCS7Pad(raw []byte, blockSize int) ([]byte, error) {
 func PaddingValidation(block []byte) (bool, int) {
 	padCharacter := block[len(block)-1]
 	padSize := int(padCharacter)
-	if padSize > aes.BlockSize {
+	if padSize > aes.BlockSize || padSize == 0 {
 		return false, 0
 	}
 	for i := len(block) - padSize; i < len(block); i++ {
