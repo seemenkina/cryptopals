@@ -1,11 +1,9 @@
 package set3
 
 import (
-	"bytes"
 	"crypto/aes"
 	"crypto/rand"
 	"encoding/binary"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/seemenkina/cryptopals/set1"
 	"github.com/seemenkina/cryptopals/set2"
 )
@@ -25,10 +23,8 @@ func (as *AESStruct) Encrypt(msg []byte) ([]byte, []byte) {
 	return decr, iv
 }
 
-func (as *AESStruct) Oracle(cipher []byte, iv []byte) bool {
-	msg, err := set2.CBCModeDecrypt(iv, cipher, as.key, aes.BlockSize)
-	spew.Dump("msg")
-	spew.Dump(msg)
+func (as *AESStruct) Oracle(iv []byte, cipher []byte) bool {
+	_, err := set2.CBCModeDecrypt(iv, cipher, as.key, aes.BlockSize)
 	if err != nil {
 		return false
 	} else {
@@ -37,43 +33,44 @@ func (as *AESStruct) Oracle(cipher []byte, iv []byte) bool {
 }
 
 func (as *AESStruct) PaddingOracleAttack(msg []byte, iv []byte) []byte {
-	prevBlock := iv
 	var plainText []byte
-	for bs, be := 0, aes.BlockSize; bs < len(msg); bs, be = bs+aes.BlockSize, be+aes.BlockSize {
-		plainBlock := make([]byte, aes.BlockSize)
-		atBlock := make([]byte, aes.BlockSize)
-		_, _ = rand.Read(atBlock)
+	msg = append(iv, msg...)
+	for bs, be := len(msg)-aes.BlockSize, len(msg); bs >= aes.BlockSize; bs, be = bs-aes.BlockSize, be-aes.BlockSize {
+		prevBlock := msg[bs-aes.BlockSize : be-aes.BlockSize]
+		curBlock := msg[bs:be]
+		var interBlock []byte
+
 		for i := aes.BlockSize - 1; i >= 0; i-- {
+			prefix := make([]byte, i)
+			_, _ = rand.Read(prefix)
+
+			var padding []byte
+			for k := 0; k < len(interBlock); k++ {
+				padding = append(padding, byte(aes.BlockSize-i)^interBlock[k])
+			}
+
+			var chr byte
 			for j := 0; j < 256; j++ {
-				atBlock[i] = byte(j)
-				chMsg := bytes.Replace(msg, msg[bs:be], atBlock, aes.BlockSize)
-				if as.Oracle(chMsg, iv) {
-					plainBlock[i] = atBlock[i] ^ byte(aes.BlockSize-i+1) ^ prevBlock[i]
+				var atBlock []byte
+				atBlock = append(prefix, byte(j))
+				atBlock = append(atBlock, padding...)
+				if as.Oracle(atBlock, curBlock) {
+					chr = byte(j)
 					break
 				}
 			}
-		}
-		plainText = append(plainText, plainBlock...)
-	}
-	return plainText
-}
+			var s []byte
+			s = append(s, chr^byte(aes.BlockSize-i))
+			interBlock = append(s, interBlock...)
 
-func (as *AESStruct) PadLen(msg, iv []byte) {
-	//msgcop := msg
-	spew.Dump(msg)
-	for bs, be := 0, aes.BlockSize; bs < len(msg); bs, be = bs+aes.BlockSize, be+aes.BlockSize {
-		spew.Dump("new block")
-		spew.Dump(msg[bs:be])
-		for i := 0; i < aes.BlockSize; i++ {
-			curBlock := msg[bs:be]
-			curBlock[i] = byte(0x0)
-			msgcop := bytes.Replace(msg, msg[bs:be], curBlock, -1)
-			if !as.Oracle(msgcop, iv) {
-				spew.Dump(i)
-				break
-			}
+			var plainBlock []byte
+
+			plainBlock = append(plainBlock, interBlock[0]^prevBlock[i])
+			plainText = append(plainBlock, plainText...)
 		}
 	}
+	plainText, _ = set2.RemovePKCS7Pad(plainText, aes.BlockSize)
+	return plainText
 }
 
 func CTRAES(key, plainText []byte, nonce int) ([]byte, error) {

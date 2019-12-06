@@ -27,14 +27,13 @@ func TestAESStruct_PaddingOracleAttack(t *testing.T) {
 	as := AESStruct{key: aKey}
 
 	//c := rand2.Intn(9)
-	for c := 0; c < 1; c++ {
+	for c := 0; c < len(msg); c++ {
 		raw, _ := base64.StdEncoding.DecodeString(msg[c])
 		cip, iv := as.Encrypt(raw)
-		as.PadLen(cip, iv)
+		ms := as.PaddingOracleAttack(cip, iv)
+		require.EqualValues(t, ms, raw)
 	}
 
-	//ms := as.PaddingOracleAttack(cip, iv)
-	//spew.Dump(ms)
 }
 
 func TestCTRAes(t *testing.T) {
