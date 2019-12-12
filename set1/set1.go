@@ -37,7 +37,7 @@ func BruteSingleXor(raw []byte) ([]byte, byte, float64) {
 	totalWeight := 0.0
 
 	for i := 1; i < 256; i++ {
-		xorRaw := xorSingleByte(raw, byte(i))
+		xorRaw := XorSingleByte(raw, byte(i))
 		curWeight := 0.0
 		curWeight = textWeight(xorRaw)
 		if curWeight > totalWeight {
@@ -49,7 +49,7 @@ func BruteSingleXor(raw []byte) ([]byte, byte, float64) {
 	return rightRaw, rightKey, totalWeight
 }
 
-func xorSingleByte(raw []byte, singleByte byte) []byte {
+func XorSingleByte(raw []byte, singleByte byte) []byte {
 	xorRaw := make([]byte, len(raw))
 	for i := 0; i < len(raw); i++ {
 		xorRaw[i] = raw[i] ^ singleByte
