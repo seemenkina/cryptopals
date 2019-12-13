@@ -266,7 +266,7 @@ func TestAESStruct_FixedNonceCTRAttackStatistically(t *testing.T) {
 	}
 }
 
-func TestCTRBlitflippingAtack(t *testing.T) {
+func TestCTRBlitFlippingAtack(t *testing.T) {
 	randKey := make([]byte, aes.BlockSize)
 	_, _ = rand.Read(randKey)
 	nonce := 0
@@ -276,4 +276,15 @@ func TestCTRBlitflippingAtack(t *testing.T) {
 
 	flag := CTRBlitflippingAtack(cm, []byte(userDataTrue))
 	assert.EqualValues(t, flag, true)
+}
+
+func TestCBCKeyIV(t *testing.T) {
+	randIV := make([]byte, aes.BlockSize)
+	_, _ = rand.Read(randIV)
+
+	userDataTrue := "comment1=cooking%20MCs;userdata=;admin=truetrue;"
+	cm := CBCModule{randIV, randIV}
+
+	key := AttackCBCKeyIV([]byte(userDataTrue), cm)
+	assert.EqualValues(t, key, randIV)
 }
