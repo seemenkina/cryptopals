@@ -265,26 +265,3 @@ func TestAESStruct_FixedNonceCTRAttackStatistically(t *testing.T) {
 		require.NotEqualf(t, outByte, plain, "Success Attack")
 	}
 }
-
-func TestCTRBlitFlippingAtack(t *testing.T) {
-	randKey := make([]byte, aes.BlockSize)
-	_, _ = rand.Read(randKey)
-	nonce := 0
-
-	userDataTrue := ";admin=true;"
-	cm := CTRModule{nonce, randKey}
-
-	flag := CTRBlitflippingAtack(cm, []byte(userDataTrue))
-	assert.EqualValues(t, flag, true)
-}
-
-func TestCBCKeyIV(t *testing.T) {
-	randIV := make([]byte, aes.BlockSize)
-	_, _ = rand.Read(randIV)
-
-	userDataTrue := "comment1=cooking%20MCs;userdata=;admin=truetrue;"
-	cm := CBCModule{randIV, randIV}
-
-	key := AttackCBCKeyIV([]byte(userDataTrue), cm)
-	assert.EqualValues(t, key, randIV)
-}
