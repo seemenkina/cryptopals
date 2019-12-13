@@ -445,7 +445,7 @@ func (cm *CBCModule) isConsistStr(cipherT []byte) bool {
 	return false
 }
 
-func CBCBlitflippingAtack(cm CBCModule, userData []byte) bool {
+func CBCBlitFlippingAttack(cm CBCModule, userData []byte) bool {
 	cipherT, err := cm.createUserStr(userData)
 	if err != nil {
 		panic(err)

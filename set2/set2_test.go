@@ -256,6 +256,6 @@ func TestCBCBlitflippingAtack(t *testing.T) {
 	userDataTrue := ";admin=true;"
 	cm := CBCModule{randIV, randKey}
 
-	flag := CBCBlitflippingAtack(cm, []byte(userDataTrue))
+	flag := CBCBlitFlippingAttack(cm, []byte(userDataTrue))
 	assert.EqualValues(t, flag, true)
 }
