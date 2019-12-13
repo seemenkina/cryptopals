@@ -4,6 +4,7 @@ import (
 	"crypto/aes"
 	"crypto/rand"
 	"encoding/base64"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
@@ -263,5 +264,16 @@ func TestAESStruct_FixedNonceCTRAttackStatistically(t *testing.T) {
 		}
 		require.NotEqualf(t, outByte, plain, "Success Attack")
 	}
+}
 
+func TestCTRBlitflippingAtack(t *testing.T) {
+	randKey := make([]byte, aes.BlockSize)
+	_, _ = rand.Read(randKey)
+	nonce := 0
+
+	userDataTrue := ";admin=true;"
+	cm := CTRModule{nonce, randKey}
+
+	flag := CTRBlitflippingAtack(cm, []byte(userDataTrue))
+	assert.EqualValues(t, flag, true)
 }
