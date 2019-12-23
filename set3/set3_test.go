@@ -4,7 +4,6 @@ import (
 	"crypto/aes"
 	"crypto/rand"
 	"encoding/base64"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
