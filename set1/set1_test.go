@@ -3,13 +3,31 @@ package set1
 import (
 	"bufio"
 	"bytes"
+	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"io/ioutil"
 	"os"
 	"testing"
 )
+
+func ReadBase64File(fileName string) ([]byte, error) {
+	buffer, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file; %s", err)
+	}
+
+	decoded := make([]byte, base64.StdEncoding.DecodedLen(len(buffer)))
+	n, err := base64.StdEncoding.Decode(decoded, buffer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode file; %s", err)
+	}
+
+	return decoded[:n], nil
+}
 
 func TestHexToBase64(t *testing.T) {
 	input := "49276d206b696c6c696e6720796f757220627261696e206c696b65206120706f69736f6e6f7573206d757368726f6f6d"
