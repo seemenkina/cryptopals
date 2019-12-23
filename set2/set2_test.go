@@ -6,13 +6,29 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 	"github.com/davecgh/go-spew/spew"
-	"github.com/seemenkina/cryptopals/set1"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"io/ioutil"
 	mrand "math/rand"
 	"testing"
 )
+
+func ReadBase64File(fileName string) ([]byte, error) {
+	buffer, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read file; %s", err)
+	}
+
+	decoded := make([]byte, base64.StdEncoding.DecodedLen(len(buffer)))
+	n, err := base64.StdEncoding.Decode(decoded, buffer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode file; %s", err)
+	}
+
+	return decoded[:n], nil
+}
 
 func TestAddPKCS7Pad(t *testing.T) {
 	tests := []struct {
@@ -68,7 +84,7 @@ func TestRemovePKCS7Pad(t *testing.T) {
 func TestCBCModeDecryptChl(t *testing.T) {
 	IV := bytes.Repeat([]byte("\x00"), 16)
 	const key = "YELLOW SUBMARINE"
-	raw, _ := set1.ReadBase64File("chl10.txt")
+	raw, _ := ReadBase64File("chl10.txt")
 
 	input := []struct {
 		cipherT []byte
