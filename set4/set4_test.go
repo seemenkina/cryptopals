@@ -58,12 +58,13 @@ func TestAttackCTRAccess(t *testing.T) {
 	randKey := make([]byte, aes.BlockSize)
 	_, _ = rand.Read(randKey)
 	nonce := 0
-	//cm := CTRModule{nonce, randKey}
+	cm := CTRModule{nonce, randKey}
 
-	cipher, err := set3.CTRAES(randKey, raw, nonce)
+	cipher, err := set3.CTRAES(cm.key, raw, cm.nonce)
 	require.NoError(t, err)
 
-	AttackCTRAccess(cipher)
+	actual := cm.AttackCTRAccess(cipher)
+	require.EqualValues(t, raw, actual)
 }
 
 func TestSHA1(t *testing.T) {
