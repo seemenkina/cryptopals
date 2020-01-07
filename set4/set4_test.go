@@ -9,7 +9,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
 	"github.com/seemenkina/cryptopals/set3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -151,14 +150,14 @@ func TestHmacSHA1Module_HMACSHA1(t *testing.T) {
 	require.EqualValues(t, expected, actual[:])
 }
 
+//test works 1 hour
 func TestServer(t *testing.T) {
 	keySize := rand2.Intn(63) + 1
 	randKey := make([]byte, keySize)
 	_, _ = rand.Read(randKey)
 
-	hsm := HmacSHA1Module{[]byte("key")}
+	hsm := HmacSHA1Module{randKey}
 	msg := []byte("The quick brown fox jumps over the lazy dog")
-	corMac, _ := hex.DecodeString("de7c9b85b8b78aa6bc8a7a36f70a90701c9db4d9")
 
 	go func() {
 		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -180,7 +179,7 @@ func TestServer(t *testing.T) {
 				return
 			}
 			for i := 0; i < len(digest); i++ {
-				time.Sleep(15 * time.Millisecond)
+				time.Sleep(5 * time.Millisecond)
 				if digest[i] != expected[i] {
 					w.WriteHeader(500)
 					return
@@ -218,33 +217,31 @@ func TestServer(t *testing.T) {
 		return false, timeE
 	}
 
+	corMac := make([]byte, 1)
 	ok, timeE := send(msg, corMac)
-	spew.Dump(ok, timeE.Milliseconds())
 
-	//corMac := make([]byte, 1)
-	//ok, timeE := send(msg, corMac)
-	//
-	//for timeE.Milliseconds() / 15 < 1{
-	//	corMac = append(corMac, byte(0x00))
-	//	ok, timeE = send(msg, corMac)
-	//}
-	//lenMac := len(corMac)
-	//
-	//for i := 0; i < lenMac; i++ {
-	//	for j := 0; j <256; j++ {
-	//		corMac[i] = byte(j)
-	//		sum := 0
-	//		for k :=0 ; k < 3; k++ {
-	//			ok, timeE = send(msg, corMac)
-	//			sum += int(timeE.Milliseconds())
-	//		}
-	//		if sum / 3 > (i + 2) * 15 {
-	//			spew.Dump(sum, i, []byte{byte(j)})
-	//			break
-	//		}
-	//	}
-	//}
-	//spew.Dump(corMac)
+	for timeE.Milliseconds()/5 < 1 {
+		corMac = append(corMac, byte(0x00))
+		ok, timeE = send(msg, corMac)
+	}
+	lenMac := len(corMac)
 
+	for i := 0; i < lenMac; i++ {
+		maxTimes := 0
+		var maxByte byte
+		for j := 0; j < 256; j++ {
+			corMac[i] = byte(j)
+			sum := 0
+			for k := 0; k < 10; k++ {
+				ok, timeE = send(msg, corMac)
+				sum += int(timeE.Milliseconds())
+			}
+			if sum > maxTimes {
+				maxTimes = sum
+				maxByte = byte(j)
+			}
+		}
+		corMac[i] = maxByte
+	}
 	require.EqualValues(t, ok, true)
 }
