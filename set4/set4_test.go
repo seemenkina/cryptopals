@@ -3,16 +3,22 @@ package set4
 import (
 	"bytes"
 	"crypto/aes"
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha1"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/seemenkina/cryptopals/set3"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"io/ioutil"
 	rand2 "math/rand"
+	"net/http"
+	"net/url"
 	"testing"
+	"time"
 )
 
 func ReadBase64File(fileName string) ([]byte, error) {
@@ -117,7 +123,7 @@ func TestSHA1Module(t *testing.T) {
 
 func TestAttackSHA1(t *testing.T) {
 	for i := 0; i < 1000; i++ {
-		keySize := rand2.Intn(31) + 1
+		keySize := rand2.Intn(63) + 1
 		randKey := make([]byte, keySize)
 		_, _ = rand.Read(randKey)
 
@@ -129,4 +135,116 @@ func TestAttackSHA1(t *testing.T) {
 		ok, _, _, _ := AttackSHA1([]byte(msg), []byte(newMsg), sm.AuthSHA1([]byte(msg)), sm)
 		require.EqualValues(t, ok, true)
 	}
+}
+
+func TestHmacSHA1Module_HMACSHA1(t *testing.T) {
+	keySize := rand2.Intn(63) + 1
+	randKey := make([]byte, keySize)
+	_, _ = rand.Read(randKey)
+
+	hsm := HmacSHA1Module{[]byte("key")}
+	actual := hsm.HMACSHA1([]byte("The quick brown fox jumps over the lazy dog"))
+
+	mac := hmac.New(sha1.New, hsm.key)
+	mac.Write([]byte("The quick brown fox jumps over the lazy dog"))
+	expected := mac.Sum(nil)
+	require.EqualValues(t, expected, actual[:])
+}
+
+func TestServer(t *testing.T) {
+	keySize := rand2.Intn(63) + 1
+	randKey := make([]byte, keySize)
+	_, _ = rand.Read(randKey)
+
+	hsm := HmacSHA1Module{[]byte("key")}
+	msg := []byte("The quick brown fox jumps over the lazy dog")
+	corMac, _ := hex.DecodeString("de7c9b85b8b78aa6bc8a7a36f70a90701c9db4d9")
+
+	go func() {
+		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			msgBytes := r.URL.Query().Get("file")
+			msg, err := url.QueryUnescape(msgBytes)
+			if err != nil {
+				t.Fatalf("Failed to decode msg: %s", err)
+			}
+
+			digestHex := r.URL.Query().Get("signature")
+			digest, err := hex.DecodeString(digestHex)
+			if err != nil {
+				t.Fatalf("Failed to decode digest: %s", err)
+			}
+
+			expected := hsm.HMACSHA1([]byte(msg))
+			if len(expected) != len(digest) {
+				w.WriteHeader(500)
+				return
+			}
+			for i := 0; i < len(digest); i++ {
+				time.Sleep(15 * time.Millisecond)
+				if digest[i] != expected[i] {
+					w.WriteHeader(500)
+					return
+				}
+			}
+		})
+		if err := http.ListenAndServe(":9000", nil); err != nil {
+			t.Fatalf("Failed to serve: %s", err)
+		}
+	}()
+
+	send := func(msg, digest []byte) (bool, time.Duration) {
+		msgB := url.QueryEscape(string(msg))
+		digestB := hex.EncodeToString(digest)
+
+		req, err := http.NewRequest("GET", "http://localhost:9000/", nil)
+		if err != nil {
+			t.Fatalf("Failed to create new http requests: %s", err)
+		}
+
+		params := req.URL.Query()
+		params.Add("file", msgB)
+		params.Add("signature", digestB)
+		req.URL.RawQuery = params.Encode()
+
+		timeS := time.Now()
+		resp, err := http.DefaultClient.Do(req)
+		timeE := time.Now().Sub(timeS)
+		if err != nil {
+			t.Fatalf("Failed in http client: %s", err)
+		}
+		if resp.StatusCode == 200 {
+			return true, timeE
+		}
+		return false, timeE
+	}
+
+	ok, timeE := send(msg, corMac)
+	spew.Dump(ok, timeE.Milliseconds())
+
+	//corMac := make([]byte, 1)
+	//ok, timeE := send(msg, corMac)
+	//
+	//for timeE.Milliseconds() / 15 < 1{
+	//	corMac = append(corMac, byte(0x00))
+	//	ok, timeE = send(msg, corMac)
+	//}
+	//lenMac := len(corMac)
+	//
+	//for i := 0; i < lenMac; i++ {
+	//	for j := 0; j <256; j++ {
+	//		corMac[i] = byte(j)
+	//		sum := 0
+	//		for k :=0 ; k < 3; k++ {
+	//			ok, timeE = send(msg, corMac)
+	//			sum += int(timeE.Milliseconds())
+	//		}
+	//		if sum / 3 > (i + 2) * 15 {
+	//			spew.Dump(sum, i, []byte{byte(j)})
+	//			break
+	//		}
+	//	}
+	//}
+	//spew.Dump(corMac)
+
+	require.EqualValues(t, ok, true)
 }
