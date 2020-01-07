@@ -5,18 +5,13 @@ import (
 	"math/bits"
 )
 
-func msgPadding(msg []byte) []byte {
+func MsgPadding(msg []byte) []byte {
 	lenM := len(msg) * 8
-	lenPad := 0
 	msg = append(msg, byte(0x80))
 
-	if len(msg) < 56 {
-		lenPad = 56 - len(msg)
-	} else {
-		lenPad = 64 - len(msg)%56
+	for (len(msg)*8)%512 != 448 {
+		msg = append(msg, byte(0x00))
 	}
-	var padding = make([]byte, lenPad)
-	msg = append(msg, padding...)
 	var pad = make([]byte, 8)
 	binary.BigEndian.PutUint64(pad[:], uint64(lenM))
 	msg = append(msg, pad...)
@@ -29,7 +24,7 @@ func SHA1(msg []byte) [20]byte {
 	var h2 = uint32(0x98BADCFE)
 	var h3 = uint32(0x10325476)
 	var h4 = uint32(0xC3D2E1F0)
-	msg = msgPadding(msg)
+	msg = MsgPadding(msg)
 
 	count := len(msg) / 64
 	if len(msg)%64 != 0 {
