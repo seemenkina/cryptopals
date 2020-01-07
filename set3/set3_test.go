@@ -4,7 +4,9 @@ import (
 	"crypto/aes"
 	"crypto/rand"
 	"encoding/base64"
+	"github.com/davecgh/go-spew/spew"
 	"github.com/stretchr/testify/require"
+	"reflect"
 	"testing"
 )
 
@@ -245,7 +247,7 @@ func TestAESStruct_FixedNonceCTRAttackStatistically(t *testing.T) {
 		"and we outta here / Yo, what happened to peace? / Pea",
 	}
 
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 1000; i++ {
 		aKey := make([]byte, aes.BlockSize)
 		_, _ = rand.Read(aKey)
 		nonce := 0
@@ -261,6 +263,13 @@ func TestAESStruct_FixedNonceCTRAttackStatistically(t *testing.T) {
 		for i := 0; i < len(plain); i++ {
 			outByte[i] = []byte(out[i])
 		}
-		require.NotEqualf(t, outByte, plain, "Success Attack")
+
+		if reflect.DeepEqual(outByte, plain) {
+			spew.Dump("Success Attack")
+			break
+		} else {
+			continue
+		}
 	}
+
 }
