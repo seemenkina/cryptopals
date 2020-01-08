@@ -5,4 +5,5 @@ Solution [Cryptopals cryptographic challenges](https://cryptopals.com/) in golan
 ## Run challenges in set 
 
 Start test file
-$ go test <set#_test.go>
+
+$go test <set#_test.go>
