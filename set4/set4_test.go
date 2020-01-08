@@ -151,7 +151,7 @@ func TestHmacSHA1Module_HMACSHA1(t *testing.T) {
 }
 
 //test works 1 hour
-func TestServer(t *testing.T) {
+func TestHMACAttack(t *testing.T) {
 	keySize := rand2.Intn(63) + 1
 	randKey := make([]byte, keySize)
 	_, _ = rand.Read(randKey)
