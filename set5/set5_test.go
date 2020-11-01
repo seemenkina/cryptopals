@@ -1,15 +1,16 @@
 package set5
 
 import (
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"math/big"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDiffieHellman(t *testing.T) {
-	alice := DHAlg{}
-	bob := DHAlg{}
+	alice := DHParticipant{}
+	bob := DHParticipant{}
 
 	p := new(big.Int).SetBytes([]byte("ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea" +
 		"63b139b22514a08798e3404ddef9519b3cd3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec6f44c42e9a" +
@@ -19,22 +20,22 @@ func TestDiffieHellman(t *testing.T) {
 	g := new(big.Int).SetUint64(2)
 
 	alice.SetParams(p, g)
-	alice.GeneratePrivKey()
-	alice.GeneratePublKey()
+	alice.GeneratePrivateKey()
+	alice.GeneratePublicKey()
 
 	bob.SetParams(p, g)
-	bob.GeneratePrivKey()
-	bob.GeneratePublKey()
+	bob.GeneratePrivateKey()
+	bob.GeneratePublicKey()
 
-	alice.DHHandshake(bob.GetPublKey())
-	bob.DHHandshake(alice.GetPublKey())
+	alice.DHHandshake(bob.GetPublicKey())
+	bob.DHHandshake(alice.GetPublicKey())
 
-	assert.EqualValues(t, alice.GetSKey(), bob.GetSKey())
+	assert.EqualValues(t, alice.DHResult(), bob.DHResult())
 }
 
 func TestDHEncrypt(t *testing.T) {
-	alice := DHAlg{}
-	bob := DHAlg{}
+	alice := DHParticipant{}
+	bob := DHParticipant{}
 
 	p := new(big.Int).SetBytes([]byte("ffffffffffffffffc90fdaa22168c234c4c6628b80dc1cd129024e088a67cc74020bbea" +
 		"63b139b22514a08798e3404ddef9519b3cd3a431b302b0a6df25f14374fe1356d6d51c245e485b576625e7ec6f44c42e9a" +
@@ -45,15 +46,15 @@ func TestDHEncrypt(t *testing.T) {
 	message := "Secret message"
 
 	alice.SetParams(p, g)
-	alice.GeneratePrivKey()
-	alice.GeneratePublKey()
+	alice.GeneratePrivateKey()
+	alice.GeneratePublicKey()
 
 	bob.SetParams(p, g)
-	bob.GeneratePrivKey()
-	bob.GeneratePublKey()
+	bob.GeneratePrivateKey()
+	bob.GeneratePublicKey()
 
-	alice.DHHandshake(bob.GetPublKey())
-	bob.DHHandshake(alice.GetPublKey())
+	alice.DHHandshake(bob.GetPublicKey())
+	bob.DHHandshake(alice.GetPublicKey())
 
 	encrAlice, iv, err := alice.Encrypt([]byte(message))
 	require.NoError(t, err)
@@ -105,13 +106,15 @@ func GetParamGP1() (*big.Int, *big.Int) {
 	return p, g
 }
 
+// TestDHAlgEva_MITMAttack is implemented test for a MITM key-fixing attack on Diffie-Hellman with parameter injection (set 34)
 func TestDHAlgEva_MITMAttack(t *testing.T) {
-	dhA := new(DHAlg)
-	dhB := new(DHAlg)
+	dhA := new(DHParticipant)
+	dhB := new(DHParticipant)
 	pA, pB := MITMAttack(dhA, dhB, GetHardcodeParams)
 	assert.EqualValues(t, pA, pB)
 }
 
+// TestMITMAttackG is implemented test for DH with negotiated groups, and break with malicious "g" parameters (set 35)
 func TestMITMAttackG(t *testing.T) {
 	tests := []struct {
 		function params
@@ -121,8 +124,8 @@ func TestMITMAttackG(t *testing.T) {
 		{GetParamGP1},
 	}
 
-	dhA := new(DHAlg)
-	dhB := new(DHAlg)
+	dhA := new(DHParticipant)
+	dhB := new(DHParticipant)
 
 	for _, tt := range tests {
 		tf := tt.function

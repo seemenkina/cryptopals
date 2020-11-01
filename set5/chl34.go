@@ -3,8 +3,9 @@ package set5
 import (
 	"crypto/aes"
 	"crypto/sha1"
-	"github.com/seemenkina/cryptopals/set2"
 	"math/big"
+
+	"github.com/seemenkina/cryptopals/set2"
 )
 
 type params func() (*big.Int, *big.Int)
@@ -15,15 +16,15 @@ func Attack(candidate, cipher, iv []byte) ([]byte, error) {
 	return plainMiddle, err
 }
 
-func MITMAttack(alice, bob *DHAlg, createParams params) ([]byte, []byte) {
+func MITMAttack(alice, bob *DHParticipant, createParams params) ([]byte, []byte) {
 	p, g := createParams()
 	alice.SetParams(p, g)
-	alice.GeneratePrivKey()
-	alice.GeneratePublKey()
+	alice.GeneratePrivateKey()
+	alice.GeneratePublicKey()
 
 	bob.SetParams(p, g)
-	bob.GeneratePrivKey()
-	bob.GeneratePublKey()
+	bob.GeneratePrivateKey()
+	bob.GeneratePublicKey()
 
 	alice.DHHandshake(p)
 	bob.DHHandshake(p)
@@ -43,7 +44,7 @@ func MITMAttack(alice, bob *DHAlg, createParams params) ([]byte, []byte) {
 		panic(err)
 	}
 
-	//p**a %p == 0, p**b %p == 0 instead of B**a %p, A**b %p
+	// p**a %p == 0, p**b %p == 0 instead of B**a %p, A**b %p
 	pma, _ := Attack(nil, cipherA, ivA)
 	pmb, _ := Attack(nil, cipherB, ivB)
 	return pma, pmb

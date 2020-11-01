@@ -6,63 +6,64 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"fmt"
-	"github.com/seemenkina/cryptopals/set2"
 	"math"
 	"math/big"
+
+	"github.com/seemenkina/cryptopals/set2"
 )
 
-type DHAlg struct {
-	p     *big.Int
-	g     *big.Int
-	privK *big.Int
-	publK *big.Int
-	sKey  *big.Int
+type DHParticipant struct {
+	p       *big.Int
+	g       *big.Int
+	private *big.Int
+	public  *big.Int
+	result  *big.Int
 }
 
-func (dh *DHAlg) SetParams(p, g *big.Int) {
+func (dh *DHParticipant) SetParams(p, g *big.Int) {
 	dh.p = p
 	dh.g = g
 }
 
-func (dh *DHAlg) GetParams() (*big.Int, *big.Int) {
+func (dh *DHParticipant) GetParams() (*big.Int, *big.Int) {
 	return dh.p, dh.g
 }
 
-func (dh *DHAlg) GeneratePrivKey() {
-	res, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+func (dh *DHParticipant) GeneratePrivateKey() {
+	private, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
 	if err != nil {
 		println(fmt.Errorf("can not create private key, %s", err))
 		panic(err)
 	}
-	dh.privK = res
+	dh.private = private
 }
 
-func (dh *DHAlg) GeneratePublKey() {
-	dh.publK = new(big.Int).Exp(dh.g, dh.privK, dh.p)
+func (dh *DHParticipant) GeneratePublicKey() {
+	dh.public = new(big.Int).Exp(dh.g, dh.private, dh.p)
 }
 
-func (dh *DHAlg) DHHandshake(pubK *big.Int) {
-	dh.sKey = new(big.Int).Exp(pubK, dh.privK, dh.p)
+func (dh *DHParticipant) DHHandshake(public *big.Int) {
+	dh.result = new(big.Int).Exp(public, dh.private, dh.p)
 }
 
-func (dh *DHAlg) GetPublKey() *big.Int {
-	return dh.publK
+func (dh *DHParticipant) GetPublicKey() *big.Int {
+	return dh.public
 }
 
-func (dh *DHAlg) GetSKey() []byte {
-	return sha256.New().Sum(dh.sKey.Bytes())
+func (dh *DHParticipant) DHResult() []byte {
+	return sha256.New().Sum(dh.result.Bytes())
 }
 
-func (dh *DHAlg) Encrypt(msg []byte) ([]byte, []byte, error) {
-	key := sha1.New().Sum(dh.sKey.Bytes())[:aes.BlockSize]
+func (dh *DHParticipant) Encrypt(msg []byte) ([]byte, []byte, error) {
+	key := sha1.New().Sum(dh.result.Bytes())[:aes.BlockSize]
 	iv := make([]byte, aes.BlockSize)
 	_, _ = rand.Read(iv)
 	decr, err := set2.CBCModeEncrypt(iv, msg, key, aes.BlockSize)
 	return decr, iv, err
 }
 
-func (dh *DHAlg) Decrypt(cipher, iv []byte) ([]byte, error) {
-	key := sha1.New().Sum(dh.sKey.Bytes())[:aes.BlockSize]
+func (dh *DHParticipant) Decrypt(cipher, iv []byte) ([]byte, error) {
+	key := sha1.New().Sum(dh.result.Bytes())[:aes.BlockSize]
 	plainText, err := set2.CBCModeDecrypt(iv, cipher, key, aes.BlockSize)
 	return plainText, err
 }

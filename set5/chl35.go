@@ -2,18 +2,18 @@ package set5
 
 import "math/big"
 
-func MITMAttackG(alice, bob *DHAlg, createParams params) ([]byte, []byte) {
+func MITMAttackG(alice, bob *DHParticipant, createParams params) ([]byte, []byte) {
 	p, g := createParams()
 	alice.SetParams(p, g)
-	alice.GeneratePrivKey()
-	alice.GeneratePublKey()
+	alice.GeneratePrivateKey()
+	alice.GeneratePublicKey()
 
 	bob.SetParams(p, g)
-	bob.GeneratePrivKey()
-	bob.GeneratePublKey()
+	bob.GeneratePrivateKey()
+	bob.GeneratePublicKey()
 
-	alice.DHHandshake(bob.GetPublKey())
-	bob.DHHandshake(alice.GetPublKey())
+	alice.DHHandshake(bob.GetPublicKey())
+	bob.DHHandshake(alice.GetPublicKey())
 
 	cipherA, ivA, err := alice.Encrypt([]byte("msg"))
 	if err != nil {
