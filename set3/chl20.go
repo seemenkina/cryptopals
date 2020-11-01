@@ -2,14 +2,16 @@ package set3
 
 import (
 	"fmt"
+
 	"github.com/seemenkina/cryptopals/set1"
 )
 
-//DO
+// DONE - first part each text
+// DO - end of the text
 func (as *AESStruct) FixedNonceCTRAttackStatistically(ciphers [][]byte, nonce int) [][]byte {
 	var minLen = len(ciphers[0])
 	var plainText = make([][]byte, len(ciphers))
-	//for j := 0; j < len(ciphers); j++ {
+	// for j := 0; j < len(ciphers); j++ {
 	counts := 0
 	for i := 0; i < len(ciphers); i++ {
 		if len(ciphers[i]) == 0 {
@@ -33,13 +35,13 @@ func (as *AESStruct) FixedNonceCTRAttackStatistically(ciphers [][]byte, nonce in
 	for i := 0; i < len(ciphers); i++ {
 		if len(ciphers[i]) != 0 {
 			uniformCiphers[i] = ciphers[i][:minLen]
-			//ciphers[i] = ciphers[i][minLen:]
+			// ciphers[i] = ciphers[i][minLen:]
 			xorText = append(xorText, uniformCiphers[i]...)
 		}
 	}
-	//for i:=0; i < len(ciphers); i++ {
+	// for i:=0; i < len(ciphers); i++ {
 	//	fmt.Printf("%x\n", ciphers[i])
-	//}
+	// }
 
 	raw, err := BreakingRepeatingKeyXor(xorText, minLen)
 	if err != nil {
@@ -55,7 +57,7 @@ func (as *AESStruct) FixedNonceCTRAttackStatistically(ciphers [][]byte, nonce in
 			}
 		}
 	}
-	//}
+	// }
 
 	return plainText
 }
